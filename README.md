@@ -445,7 +445,7 @@ app.listen(PORT, () => {
 15. **Running the server:**
     If you already installed `nodemon` globally on your desktop, youu can run directly with the Git Bash Command:
     ```
-    nodemon server.js
+    npm run dev
     ```
 
 **Summary: This is what the back-end structure of your MERN project will look like once you have followed the entire process correctly.**
