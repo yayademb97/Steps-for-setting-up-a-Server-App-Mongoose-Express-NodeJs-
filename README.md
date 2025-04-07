@@ -40,7 +40,36 @@ With this server, you'll be ready to connect the frontend of your MERN applicati
    ```
 
    After running this command, a `package.json` file will be automatically generated.
-   Don't forget to add `"type": "module" ` for enabling the use ` import` and ` export` of and  in your `package.json` file.
+   Don't forget to add `"type": "module" `, add this for abling the nodemon to run your server `dev`: `npx nodemon` for enabling the use ` import` and ` export` of and  in your `package.json` file.
+   
+   //* Correct file for `package.json` 
+   ```
+     {
+       "name": "server",
+       "version": "1.0.0",
+       "description": "",
+       "main": "server.js",
+       "scripts": {
+         "test": "echo \"Error: no test specified\" && exit 1",
+         "start": "node server.js",
+         "dev": "npx nodemon"
+      },
+       "keywords": [],
+       "author": "",
+       "license": "ISC",
+       "type": "module",
+      "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "mongoose": "^8.13.0",
+        "nodemon": "^3.1.9"
+     }
+   }
+
+   ```
+
+
 4. **Install Required Dependencies**:
 
    Install the necessary packages for the backend, including Express, Mongoose, CORS, and dotenv:
@@ -74,7 +103,7 @@ npm install express mongoose cors dotenv
    * PASTE THE MONGODB CONNECTION STRING LINK HERE
    MONGO_URI = <your-mongodb-connection-string>  //* Paste here your mongo connection string from YOUR MONGO DB ATLAS ACCOUNT
    * Specify The DB NAME
-   DB = database_name
+   DB_NAME = database_name
 
    ```
 8. **Set Up for `.gitignore` file:**
@@ -97,7 +126,7 @@ npm install express mongoose cors dotenv
 
    //* Extract MongoDB URI and database name from environment variables
    const MONGO_URI = process.env.MONGO_URI; // MongoDB URI
-   const DB = process.env.DB; // Database name
+   const DB_NAME = process.env.DB_NAME; // Database name
 
    /**
     * Establish a connection to MongoDB database
@@ -108,9 +137,9 @@ npm install express mongoose cors dotenv
    async function dbConnect() {
        try {
            await connect(MONGO_URI, {
-               dbName: DB,
+               dbName: DB_NAME,
            });
-           console.log("Pinged your deployment. You successfully connected to MongoDB!");
+           console.log(`Pinged your deployment. You successfully connected to MongoDB! in Database: ${DB_NAME}`);
        } catch (error) {
            console.log(error);
            throw error;
@@ -193,80 +222,128 @@ Here is an example of controller:
 //* Import the Task model
 import Task from "../models/task.model.js";
 
-//* CRUD
-/** 
-* Create a new task in the database
-* @param {Object} req - The HTTP request object, containing task data in req.body.
-* @param {Object} res - The HTTP response object, used to send a response to the client.
-**/
+const taskController = {
+    //? CRUD Features
+    //! 1. Create a Task feature
+    createTask: async (req, res) => {
+        try {
+            const newTask = await Task.create(req.body);
 
-//? CREATE A NEW TASK FEATURE
-async function createTask(req, res) {
-    try {
-        const newTask = await Task.create(req.body);
-        res.json(newTask);
-    } catch (error) {
-        console.log(error);
-        res.status(400).json(error);
+            //* Update User for updating a Task
+            await User.findByIdAndUpdate(newTask.assignedTo, {
+                $push: { tasks: newTask._id }
+            });
+
+            res.status(201).json({
+                success: true,
+                message: "✅ Task created successfully ✅",
+                data: newTask
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(400).json({
+                success: false,
+                message: "❌ Task creation failed ❌",
+                error: error,
+            });
+        }
+    },
+
+    //! 2. Read All Tasks feature:
+    getAllTasks: async (req, res) => {
+        try {
+            const allTasks = await Task.find().populate("assignedTo", "firstName");
+            res.status(200).json({
+                success: true,
+                message: "✅ All tasks retrieved successfully ✅",
+                allTaskData: allTasks
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(400).json({
+                success: false,
+                message: "❌ All Tasks not found ❌",
+                error: error,
+            });
+        }
+    },
+
+    //! 3. Read One Task feature
+    getOneTask: async (req, res) => {
+        try {
+            const foundTask = await Task.findById(req.params.id);
+            res.status(200).json({
+                success: true,
+                message: "✅ Task found successfully ✅",
+                data: foundTask
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(400).json({
+                success: false,
+                message: "❌ Task not found ❌",
+                error: error,
+            });
+        }
+    },
+
+    //! 4. Update a Task feature
+    updateOneTask: async (req, res) => {
+        const options = {
+            new: true, //* Return the updated document
+            runValidators: true //* Ensure the update follows schema rules
+        };
+        try {
+            const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, options);
+            if (!updatedTask) {
+                return res.status(404).json({
+                    success: false,
+                    message: "❌ Task not found ❌"
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                message: "✅ Task updated successfully ✅",
+                data: updatedTask
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(400).json({
+                success: false,
+                message: "❌ Task update failed ❌",
+                error: error,
+            });
+        }
+    },
+
+    //* 5. Delete a Task feature
+    deleteOneTask: async (req, res) => {
+        try {
+            const deletedTask = await Task.findByIdAndDelete(req.params.id);
+            if (!deletedTask) {
+                return res.status(404).json({
+                    success: false,
+                    message: "❌ Task not found ❌"
+                });
+            }
+            res.status(200).json({
+                success: true,
+                message: "✅ Task deleted successfully ✅",
+                data: deletedTask
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(400).json({
+                success: false,
+                message: "❌ Task deletion failed ❌",
+               error: error
+            });
+        }
     }
-}
-
-//? READ
-//* READ ALL TASKS FEATURE
-async function getAllTasks(req, res) {
-    try {
-        const allTasks = await Task.find();
-        res.json(allTasks);
-    } catch (error) {
-        console.log(error);
-        res.status(400).json(error);
-    }
-}
-
-//* READ ONE TASK FEATURE
-async function getOneTask(req, res) {
-    try {
-        const foundTask = await Task.findById(req.params.id);
-        res.json(foundTask);
-    } catch (error) {
-        console.log(error);
-        res.status(400).json(error);
-    }
-}
-
-//* UPDATE THE TASK FEATURE
-async function updateOneTask(req, res) {
-    const options = {
-        new: true,
-        runValidators: true,
-    };
-    try {
-        const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, options);
-        res.json(updatedTask);
-    } catch (error) {
-        console.log(error);
-        res.status(400).json(error);
-    }
-}
-
-//* DELETE THE TASK FEATURE
-async function deleteOneTask(req, res) {
-    try {
-        const deletedTask = await Task.findByIdAndDelete(req.params.id);
-        res.json(deletedTask);
-    } catch (error) {
-        console.log(error);
-        res.status(400).json(error);
-    }
-}
-
-export {
-    createTask,
-    getAllTasks,
-    getOneTask,
-    updateOneTask,
-    deleteOneTask,
 };
+
+export default taskController;
 
 ```
 
@@ -283,53 +360,39 @@ export {
     import { Router } from 'express';
 
     //* Import all features from the task controller to the routes
-    import {
-        createTask,
-        getAllTasks,
-        getOneTask,
-        updateOneTask,
-        deleteOneTask,
-    } from '../controllers/task.controller.js';
+    import taskController from "../controllers/task.controller.js";
 
-    //* Create a new Router instance
+    //* Create a new instance from the Router class called `router`
     const router = Router();
+    //? CRUD Features Routes
+    //! 1. Create a Task feature Route
+    router.route("/tasks/create")
+            .post(taskController.createTask)
+      //! 2. Read All Tasks feature Route
+    //* a) Read All Tasks Route
+    router.route("/tasks")
+        .get(taskController.getAllTasks)
 
-    //* Define the routes for the Task features
+    //! 3. Read One Task feature Route
+    router.route("/tasks/:id/details")
+        .get(taskController.getOneTask)
 
-    //* Create Route for Task
-    router
-    .route('/tasks/create')
-    .post(createTask);
+     //! 4. Update One Task feature Route
+    taskRr            .put(taskController.updateOneTask)
 
-    //* Get All Tasks Route
-    router
-    .route('/tasks')
-    .get(getAllTasks);
-
-    //* Get One Task Route
-    router
-    .route('/tasks/:id')
-    .get(getOneTask);
-
-    //* Update One Task Route
-    router
-    .route('/tasks/:id/edit')
-    .put(updateOneTask);
-
-    //* Delete One Task Route
-    router
-    .route('/tasks/:id/delete')
-    .delete(deleteOneTask);
+    //! 5. Delte One Task feature Route
+    router.route("/tasks/:id/destroy")
+        .delete(taskController.deleteOneTask)
 
     //* Export the router in the main file for the server application called 'server.js'
     export default router;
 
-    Explanation:
+    //* Explanation:
     /tasks/create: Route for creating a new task.
     /tasks: Route for getting all tasks.
-    /tasks/:id: Route for getting a specific task by ID.
+    /tasks/:id/details: Route for getting a specific task by ID.
     /tasks/:id/edit: Route for updating a specific task by ID.
-    /tasks/:id/delete: Route for deleting a specific task by ID.
+    /tasks/:id/destroy: Route for deleting a specific task by ID.
     ```
 
     14. Set Up for `server.js` file:
@@ -345,7 +408,7 @@ import dotenv from 'dotenv';
 
 
 //* Import the router from the routes folder
-import router from './routes/product.routes.js';
+import router from './routes/task.routes.js';
 import dbConnect from './config/mongoose.config.js';
 
 
