@@ -378,7 +378,8 @@ export default taskController;
         .get(taskController.getOneTask)
 
      //! 4. Update One Task feature Route
-    taskRr            .put(taskController.updateOneTask)
+     router.route("/tasks/:id/edit")
+           .put(taskController.updateOneTask)
 
     //! 5. Delte One Task feature Route
     router.route("/tasks/:id/destroy")
